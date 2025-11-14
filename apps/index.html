@@ -1,1 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Service Dashboard — Secure HTML Frontend</title>
 
+  <!-- Tailwind CDN for fast, nice styling (optional, remove if you don't want it) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Supabase JS (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+
+  <style>
+    /* small cosmetic tweaks */
+    body { background: linear-gradient(180deg,#f8fafc,#ffffff); }
+  </style>
+</head>
+<body class="min-h-screen font-sans text-gray-900">
+  <div class="max-w-5xl mx-auto p-6">
+    <header class="mb-6">
+      <h1 class="text-4xl font-bold">Service System — Secure Frontend</h1>
+      <p class="text-gray-600 mt-1">Client-only UI. Sensitive ops run on server functions.</p>
+    </header>
+
+    <section id="auth" class="mb-6 bg-white shadow rounded p-6">
+      <h2 class="text-2xl font-semibold mb-3">Login / Register</h2>
+      <div id="userPanel" class="hidden">
+        <div id="welcome" class="mb-2"></div>
+        <button id="signOutBtn" class="px-3 py-1 rounded border">Sign out</button>
+      </div>
+
+      <div id="authForm">
+        <input id="email" type="email" placeholder="Email" class="border p-2 rounded w-full mb-2" />
+        <input id="password" type="password" placeholder="Password" class="border p-2 rounded w-full mb-4" />
+
+        <div class="flex gap-2">
+          <button id="loginBtn" class="px-4 py-2 bg-blue-600 text-white rounded">Sign in</button>
+          <button id="signupBtn" class="px-4 py-2 border rounded">Register</button>
+        </div>
+
+        <p class="text-xs text-gray-500 mt-3">
+          Uses Supabase Auth. You will receive a magic link (if configured) or use password sign-in.
+        </p>
+      </div>
+    </section>
+
+    <main class="grid md:grid-cols-2 gap-6">
+      <section class="bg-white p-6 rounded shadow" aria-labelledby="servicesTitle">
+        <h3 id="servicesTitle" class="text-xl font-semibold mb-4">Available Services</h3>
+        <div id="servicesList">Loading services…</div>
+      </section>
+
+      <section class="bg-white p-6 rounded shadow" aria-labelledby="requestsTitle">
+        <h3 id="requestsTitle" class="text-xl font-semibold mb-4">My Requests</h3>
+        <div id="requestsList">Login to see your requests</div>
+      </section>
+    </main>
+
+    <template id="serviceItem">
+      <div class="border p-3 rounded mb-3">
+        <div class="flex justify-between items-start">
+          <div>
+            <div class="font-bold name"></div>
+            <div class="text-sm desc text-gray-600"></div>
+          </div>
+          <div class="text-right">
+            <div class="price font-semibold"></div>
+            <button class="requestBtn mt-2 px-3 py-1 rounded border">Request</button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <template id="requestItem">
+      <div class="border p-3 rounded mb-3">
+        <div><strong>Status:</strong> <span class="status"></span></div>
+        <div class="text-sm text-gray-600"><strong>Scheduled:</strong> <span class="sched"></span></div>
+      </div>
+    </template>
+
+    <footer class="text-xs text-gray-500 mt-8">
+      Built securely — public anon key only in browser; admin keys stored server-side.
+    </footer>
+  </div>
+
+<script>
+/* ==========================
+   CONFIGURATION - EDIT THESE
+   ==========================
+   WARNING: Do NOT put admin/service_role keys here.
+*/
+const SUPABASE_URL = 'https://YOUR-PROJECT.supabase.co';         // <-- replace
+const SUPABASE_ANON_KEY = 'YOUR-PUBLIC-ANON-KEY';               // <-- replace
+// Edge function endpoint (server-side) that creates service requests.
+// This function should be deployed server-side and be the only place using the SERVICE_ROLE_KEY.
+const CREATE_REQUEST_FN_URL = 'https://YOUR-PROJECT.supabase.co/functions/v1/create-service-request'; // <-- replace
+
+/* ==========================
+   END CONFIG - DO NOT EDIT BELOW IF UNSURE
+   ========================== */
+const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// tiny helpers
+const $ = sel => document.querySelector(sel);
+const q = sel => document.querySelectorAll(sel);
+
+async function init() {
+  // Auth state listener
+  supabase.auth.onAuthStateChange((event, session) => {
+    renderAuth(session?.user || null);
+    if (session?.user) {
+      loadMyRequests();
+    }
+  });
+
+  // Initial UI
+  renderAuth((await supabase.auth.getSession()).data?.session?.user || null);
+  await loadServices();
+}
+
+/* Auth UI */
+function renderAuth(user) {
+  if (user) {
+    $('#authForm').style.display = 'none';
+    $('#userPanel').style.display = 'block';
+    $('#welcome').textContent = `Signed in as ${user.email || user.id}`;
+  } else {
+    $('#authForm').style.display = 'block';
+    $('#userPanel').style.display = 'none';
+  }
+}
+
+$('#loginBtn').addEventListener('click', async () => {
+  const email = $('#email').value.trim();
+  const password = $('#password').value;
+  if (!email || !password) { alert('Please fill fields'); return; }
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) alert('Login error: ' + error.message);
+});
+
+$('#signupBtn').addEventListener('click', async () => {
+  const email = $('#email').value.trim();
+  const password = $('#password').value;
+  if (!email || !password) { alert('Please fill fields'); return; }
+  const { error } = await supabase.auth.signUp({ email, password });
+  if (error) alert('Signup error: ' + error.message);
+});
+
+$('#signOutBtn').addEventListener('click', async () => {
+  await supabase.auth.signOut();
+  renderAuth(null);
+});
+
+/* Fetch & render services */
+async function loadServices() {
+  const el = $('#servicesList');
+  el.textContent = 'Loading...';
+  const { data, error } = await supabase.from('services').select('id,name,description,price');
+  if (error) { el.textContent = 'Error loading services'; console.error(error); return; }
+  el.innerHTML = '';
+  const tmpl = document.getElementById('serviceItem');
+  data.forEach(s => {
+    const node = tmpl.content.cloneNode(true);
+    node.querySelector('.name').textContent = s.name;
+    node.querySelector('.desc').textContent = s.description || '';
+    node.querySelector('.price').textContent = `$${Number(s.price).toFixed(2)}`;
+    const btn = node.querySelector('.requestBtn');
+    btn.addEventListener('click', () => {
+      requestService(s.id);
+    });
+    el.appendChild(node);
+  });
+}
+
+/* Load authenticated user's requests (RLS must allow it) */
+async function loadMyRequests() {
+  const el = $('#requestsList');
+  el.textContent = 'Loading...';
+  const { data, error } = await supabase.from('service_requests').select('*');
+  if (error) { el.textContent = 'Error loading requests'; console.error(error); return; }
+  el.innerHTML = '';
+  const tmpl = document.getElementById('requestItem');
+  if (!data.length) { el.textContent = 'No requests yet'; return; }
+  data.forEach(r => {
+    const node = tmpl.content.cloneNode(true);
+    node.querySelector('.status').textContent = r.status;
+    node.querySelector('.sched').textContent = r.scheduled_at || 'Not scheduled';
+    el.appendChild(node);
+  });
+}
+
+/* Create request: call server Edge Function (server runs with service_role key) */
+async function requestService(service_id) {
+  const user = (await supabase.auth.getUser()).data?.user;
+  if (!user) { alert('Please sign in first'); return; }
+
+  // minimal client validation
+  const payload = {
+    customer_id: user.id,
+    service_id,
+    address: prompt('Enter installation address (optional)') || null,
+    notes: prompt('Any notes?') || null
+  };
+
+  try {
+    const res = await fetch(CREATE_REQUEST_FN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // include the user's auth cookie/JWT if needed; supabase edge functions can read bearer token
+        // NOTE: if your Edge Function requires the user's JWT, add it here:
+        // 'Authorization': 'Bearer ' + (await supabase.auth.getSession()).data.session?.access_token
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const json = await res.json();
+    if (!res.ok) {
+      console.error(json); alert('Failed to create request: ' + (json?.error || res.statusText));
+      return;
+    }
+    alert('Request created ✓');
+    loadMyRequests();
+  } catch (err) {
+    console.error(err); alert('Network error creating request');
+  }
+}
+
+/* init */
+init();
+</script>
+</body>
+</html>
