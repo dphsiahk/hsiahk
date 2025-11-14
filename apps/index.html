@@ -3,138 +3,319 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Service Dashboard </title>
+  <title>Service Dashboard — All-in-One</title>
 
-  <!-- Tailwind CDN for fast, nice styling (optional, remove if you don't want it) -->
+  <!-- Tailwind CDN for styling -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Supabase JS (CDN) -->
+  <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
 
   <style>
-    /* small cosmetic tweaks */
     body { background: linear-gradient(180deg,#f8fafc,#ffffff); }
+    .hidden { display: none !important; }
+    .disabled { opacity: 0.5; pointer-events: none; }
   </style>
 </head>
 <body class="min-h-screen font-sans text-gray-900">
-  <div class="max-w-5xl mx-auto p-6">
-    <header class="mb-6">
-      <h1 class="text-4xl font-bold">Service System — Secure Frontend</h1>
-      <p class="text-gray-600 mt-1">Client-only UI. Sensitive ops run on server functions.</p>
+  <div class="max-w-6xl mx-auto p-6">
+    <header class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
+      <div>
+        <h1 class="text-3xl md:text-4xl font-bold">Service System — Secure Frontend</h1>
+        <p class="text-gray-600 mt-1">Single-file app • Role-based UI • Feature flags</p>
+      </div>
+      <nav class="mt-4 md:mt-0">
+        <div id="topNav" class="flex gap-2 flex-wrap">
+          <!-- Navigation buttons programmatically shown -->
+        </div>
+      </nav>
     </header>
 
-    <section id="auth" class="mb-6 bg-white shadow rounded p-6">
-      <h2 class="text-2xl font-semibold mb-3">Login / Register</h2>
+    <!-- AUTH SECTION -->
+    <section id="authSection" class="bg-white shadow rounded p-6 mb-6">
+      <h2 class="text-2xl font-semibold mb-3">Account</h2>
+
       <div id="userPanel" class="hidden">
-        <div id="welcome" class="mb-2"></div>
-        <button id="signOutBtn" class="px-3 py-1 rounded border">Sign out</button>
+        <div class="mb-2">
+          <span id="welcomeName" class="font-semibold"></span>
+          <span id="userRoleBadge" class="ml-3 text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700"></span>
+        </div>
+        <div class="flex gap-2 mb-4">
+          <button id="profileBtn" class="px-3 py-1 rounded border">Profile</button>
+          <button id="signOutBtn" class="px-3 py-1 rounded border">Sign out</button>
+        </div>
       </div>
 
       <div id="authForm">
-        <input id="email" type="email" placeholder="Email" class="border p-2 rounded w-full mb-2" />
-        <input id="password" type="password" placeholder="Password" class="border p-2 rounded w-full mb-4" />
+        <div class="grid md:grid-cols-2 gap-3">
+          <input id="email" type="email" placeholder="Email" class="border p-2 rounded w-full" />
+          <input id="password" type="password" placeholder="Password" class="border p-2 rounded w-full" />
+        </div>
 
-        <div class="flex gap-2">
+        <div class="flex gap-2 mt-4">
           <button id="loginBtn" class="px-4 py-2 bg-blue-600 text-white rounded">Sign in</button>
           <button id="signupBtn" class="px-4 py-2 border rounded">Register</button>
+          <button id="magicBtn" class="px-4 py-2 border rounded">Send Magic Link</button>
         </div>
 
         <p class="text-xs text-gray-500 mt-3">
-          Uses Supabase Auth. You will receive a magic link (if configured) or use password sign-in.
+          Uses Supabase Auth. Magic link and password sign-in supported (enable in Supabase).
         </p>
       </div>
     </section>
 
-    <main class="grid md:grid-cols-2 gap-6">
-      <section class="bg-white p-6 rounded shadow" aria-labelledby="servicesTitle">
-        <h3 id="servicesTitle" class="text-xl font-semibold mb-4">Available Services</h3>
-        <div id="servicesList">Loading services…</div>
+    <!-- NAV / Pages container -->
+    <main id="pages" class="grid gap-6">
+      <!-- SERVICES PAGE -->
+      <section id="servicesPage" class="page bg-white p-6 rounded shadow hidden">
+        <div class="flex justify-between items-start mb-4">
+          <h2 class="text-2xl font-semibold">Services</h2>
+          <div>
+            <button id="addServiceBtn" class="px-3 py-1 rounded border mr-2">Add Service (Admin)</button>
+            <input id="serviceSearch" placeholder="Search services..." class="border p-2 rounded" />
+          </div>
+        </div>
+        <div id="servicesList" class="grid md:grid-cols-2 gap-3">Loading services…</div>
       </section>
 
-      <section class="bg-white p-6 rounded shadow" aria-labelledby="requestsTitle">
-        <h3 id="requestsTitle" class="text-xl font-semibold mb-4">My Requests</h3>
+      <!-- SERVICE DETAILS (modal-like) -->
+      <section id="serviceDetailsPage" class="page bg-white p-6 rounded shadow hidden">
+        <button id="backToServices" class="mb-3 text-sm text-blue-600">← Back to services</button>
+        <h3 id="svcName" class="text-xl font-bold"></h3>
+        <p id="svcDesc" class="text-gray-600 mt-2"></p>
+        <div class="mt-4">
+          <strong>Price:</strong> $<span id="svcPrice">0.00</span>
+          <span class="ml-4 text-sm text-gray-500">Duration: <span id="svcDuration">60</span> min</span>
+        </div>
+        <div class="mt-6 flex gap-2">
+          <button id="requestServiceBtn" class="px-4 py-2 bg-green-600 text-white rounded">Request Service</button>
+          <button id="editServiceBtn" class="px-4 py-2 border rounded">Edit (Admin)</button>
+        </div>
+      </section>
+
+      <!-- REQUESTS PAGE -->
+      <section id="requestsPage" class="page bg-white p-6 rounded shadow hidden">
+        <h2 class="text-2xl font-semibold mb-4">My Requests</h2>
         <div id="requestsList">Login to see your requests</div>
+      </section>
+
+      <!-- REQUEST DETAILS -->
+      <section id="requestDetailsPage" class="page bg-white p-6 rounded shadow hidden">
+        <button id="backToRequests" class="mb-3 text-sm text-blue-600">← Back to requests</button>
+        <h3 id="reqTitle" class="text-xl font-bold">Request</h3>
+        <div class="mt-3">
+          <div><strong>Status:</strong> <span id="reqStatus" class="font-semibold"></span></div>
+          <div class="text-sm text-gray-600"><strong>Service:</strong> <span id="reqServiceName"></span></div>
+          <div class="text-sm text-gray-600"><strong>Scheduled:</strong> <span id="reqScheduled"></span></div>
+          <div class="mt-2"><strong>Notes:</strong><div id="reqNotes" class="text-gray-700"></div></div>
+        </div>
+        <div id="reqActions" class="mt-4 flex gap-2"></div>
+      </section>
+
+      <!-- ADMIN DASHBOARD -->
+      <section id="adminPage" class="page bg-white p-6 rounded shadow hidden">
+        <h2 class="text-2xl font-semibold mb-4">Admin Dashboard</h2>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div>
+            <h3 class="font-semibold mb-2">All Requests</h3>
+            <div id="adminRequests">Loading...</div>
+          </div>
+          <div>
+            <h3 class="font-semibold mb-2">Manage Services</h3>
+            <div id="adminServices">Loading...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TECHNICIAN DASHBOARD -->
+      <section id="technicianPage" class="page bg-white p-6 rounded shadow hidden">
+        <h2 class="text-2xl font-semibold mb-4">Technician Dashboard</h2>
+        <div id="techJobs">Loading assigned jobs...</div>
+      </section>
+
+      <!-- SETTINGS / HELP -->
+      <section id="settingsPage" class="page bg-white p-6 rounded shadow hidden">
+        <h2 class="text-2xl font-semibold mb-4">Settings & Help</h2>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div>
+            <h4 class="font-semibold">Account Settings</h4>
+            <div class="mt-2">
+              <label class="block text-sm">Full name</label>
+              <input id="profileFullName" class="border p-2 rounded w-full" />
+              <label class="block text-sm mt-2">Phone</label>
+              <input id="profilePhone" class="border p-2 rounded w-full" />
+              <div class="mt-3">
+                <button id="saveProfileBtn" class="px-3 py-1 bg-blue-600 text-white rounded">Save profile</button>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h4 class="font-semibold">Help & Contact</h4>
+            <p class="text-sm text-gray-600 mt-2">If you need help, contact support@yourdomain.org or open a ticket.</p>
+            <div class="mt-3">
+              <textarea id="helpMessage" class="border p-2 rounded w-full" placeholder="Describe your issue..."></textarea>
+              <button id="sendHelpBtn" class="mt-2 px-3 py-1 border rounded">Send</button>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
 
-    <template id="serviceItem">
-      <div class="border p-3 rounded mb-3">
-        <div class="flex justify-between items-start">
-          <div>
-            <div class="font-bold name"></div>
-            <div class="text-sm desc text-gray-600"></div>
-          </div>
-          <div class="text-right">
-            <div class="price font-semibold"></div>
-            <button class="requestBtn mt-2 px-3 py-1 rounded border">Request</button>
-          </div>
-        </div>
-      </div>
-    </template>
-
-    <template id="requestItem">
-      <div class="border p-3 rounded mb-3">
-        <div><strong>Status:</strong> <span class="status"></span></div>
-        <div class="text-sm text-gray-600"><strong>Scheduled:</strong> <span class="sched"></span></div>
-      </div>
-    </template>
-
     <footer class="text-xs text-gray-500 mt-8">
-      Built securely — public anon key only in browser; admin keys stored server-side.
+      Built securely — anon key only in browser; admin keys stored server-side. Use RLS.
     </footer>
   </div>
 
+  <!-- Templates -->
+  <template id="serviceCard">
+    <div class="border p-3 rounded">
+      <div class="font-bold name"></div>
+      <div class="text-sm desc text-gray-600 mt-1"></div>
+      <div class="mt-2 flex justify-between items-center">
+        <div class="price font-semibold"></div>
+        <div>
+          <button class="viewBtn px-3 py-1 rounded border mr-2">View</button>
+          <button class="requestBtn px-3 py-1 rounded border">Request</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <template id="requestCard">
+    <div class="border p-3 rounded mb-2">
+      <div class="flex justify-between">
+        <div><strong class="svcName"></strong> — <span class="status"></span></div>
+        <div><small class="createdAt text-gray-500"></small></div>
+      </div>
+      <div class="text-sm text-gray-600 mt-1">Notes: <span class="notes"></span></div>
+      <div class="mt-2 text-right">
+        <button class="viewReqBtn px-2 py-1 border rounded text-sm">Details</button>
+      </div>
+    </div>
+  </template>
+
 <script>
-/* ==========================
+/* *******************************
    CONFIGURATION - EDIT THESE
-   ==========================
-   WARNING: Do NOT put admin/service_role keys here.
+   *******************************
+   IMPORTANT: Do NOT put admin/service_role keys here.
 */
 const SUPABASE_URL = 'https://YOUR-PROJECT.supabase.co';         // <-- replace
 const SUPABASE_ANON_KEY = 'YOUR-PUBLIC-ANON-KEY';               // <-- replace
-// Edge function endpoint (server-side) that creates service requests.
-// This function should be deployed server-side and be the only place using the SERVICE_ROLE_KEY.
-const CREATE_REQUEST_FN_URL = 'https://YOUR-PROJECT.supabase.co/functions/v1/create-service-request'; // <-- replace
 
-/* ==========================
-   END CONFIG - DO NOT EDIT BELOW IF UNSURE
-   ========================== */
+// Edge function endpoints (server-side) — these must be implemented server-side
+const FN_CREATE_REQUEST = 'https://YOUR-PROJECT.supabase.co/functions/v1/create-service-request'; // create request (server uses service role)
+const FN_ADD_SERVICE = 'https://YOUR-PROJECT.supabase.co/functions/v1/admin-add-service';         // admin add service
+const FN_UPDATE_SERVICE = 'https://YOUR-PROJECT.supabase.co/functions/v1/admin-update-service';   // admin update service
+const FN_ASSIGN_TECH = 'https://YOUR-PROJECT.supabase.co/functions/v1/admin-assign-tech';         // admin assign technician
+const FN_APPROVE_REQUEST = 'https://YOUR-PROJECT.supabase.co/functions/v1/admin-approve-request'; // admin approve/reject
+
+/* END CONFIG */
 const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// tiny helpers
-const $ = sel => document.querySelector(sel);
-const q = sel => document.querySelectorAll(sel);
+/* -- Feature flags (can be toggled at runtime) -- */
+const featureFlags = {
+  enableAdmin: true,
+  enableTechnician: true,
+  enableFileUpload: false, // set true if you configure storage buckets and policies
+  enableMagicLink: true
+};
 
+/* tiny DOM helpers */
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const showPage = id => { document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); window.scrollTo(0,0); };
+const disableEl = el => el?.classList.add('disabled');
+const enableEl = el => el?.classList.remove('disabled');
+
+/* App state */
+let currentUser = null;    // supabase user object
+let profile = null;        // loaded from 'profiles' table
+let currentService = null;
+let currentRequest = null;
+
+/* Initialize UI and auth listener */
 async function init() {
-  // Auth state listener
+  // Set initial nav
+  renderTopNav();
+  // Auth listener
   supabase.auth.onAuthStateChange((event, session) => {
-    renderAuth(session?.user || null);
-    if (session?.user) {
-      loadMyRequests();
-    }
+    currentUser = session?.user || null;
+    onAuthChanged();
   });
 
-  // Initial UI
-  renderAuth((await supabase.auth.getSession()).data?.session?.user || null);
+  // Initial session check
+  const sessionResp = await supabase.auth.getSession();
+  currentUser = sessionResp.data?.session?.user || null;
+  await onAuthChanged();
+  // Load public data
   await loadServices();
 }
 
-/* Auth UI */
-function renderAuth(user) {
-  if (user) {
-    $('#authForm').style.display = 'none';
-    $('#userPanel').style.display = 'block';
-    $('#welcome').textContent = `Signed in as ${user.email || user.id}`;
+/* Render top navigation based on feature flags & role */
+function renderTopNav() {
+  const nav = $('#topNav');
+  nav.innerHTML = '';
+  const addNavBtn = (id, label) => {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.className = 'px-3 py-1 rounded border text-sm';
+    btn.addEventListener('click', () => showPage(id));
+    nav.appendChild(btn);
+  };
+
+  addNavBtn('servicesPage','Services');
+  addNavBtn('requestsPage','My Requests');
+  if (featureFlags.enableTechnician) addNavBtn('technicianPage','Technician');
+  if (featureFlags.enableAdmin) addNavBtn('adminPage','Admin');
+  addNavBtn('settingsPage','Settings / Help');
+}
+
+/* Toggle a feature flag at runtime */
+function setFeatureFlag(name, value) {
+  featureFlags[name] = value;
+  // react to certain flags immediately
+  renderTopNav();
+  // example: hide admin page if disabled
+  if (!featureFlags.enableAdmin) document.getElementById('adminPage').classList.add('hidden');
+  if (!featureFlags.enableTechnician) document.getElementById('technicianPage').classList.add('hidden');
+}
+
+/* Authentication UI and logic */
+function onAuthChanged() {
+  if (currentUser) {
+    $('#authForm').classList.add('hidden');
+    $('#userPanel').classList.remove('hidden');
+    $('#welcomeName').textContent = currentUser.email || currentUser.id;
+    loadProfile().then(()=> {
+      // show role badge & conditional pages
+      $('#userRoleBadge').textContent = profile?.role || 'customer';
+      if (profile?.role === 'admin' && featureFlags.enableAdmin) {
+        document.getElementById('adminPage').classList.remove('hidden');
+      } else {
+        document.getElementById('adminPage').classList.add('hidden');
+      }
+      if (profile?.role === 'technician' && featureFlags.enableTechnician) {
+        document.getElementById('technicianPage').classList.remove('hidden');
+      } else {
+        document.getElementById('technicianPage').classList.add('hidden');
+      }
+    });
+    // default to services page on login
+    showPage('servicesPage');
   } else {
-    $('#authForm').style.display = 'block';
-    $('#userPanel').style.display = 'none';
+    $('#authForm').classList.remove('hidden');
+    $('#userPanel').classList.add('hidden');
+    showPage('servicesPage');
+    profile = null;
   }
 }
 
+/* Auth buttons */
 $('#loginBtn').addEventListener('click', async () => {
   const email = $('#email').value.trim();
   const password = $('#password').value;
-  if (!email || !password) { alert('Please fill fields'); return; }
+  if (!email || !password) return alert('Please fill email and password');
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) alert('Login error: ' + error.message);
 });
@@ -142,93 +323,463 @@ $('#loginBtn').addEventListener('click', async () => {
 $('#signupBtn').addEventListener('click', async () => {
   const email = $('#email').value.trim();
   const password = $('#password').value;
-  if (!email || !password) { alert('Please fill fields'); return; }
+  if (!email || !password) return alert('Please fill email and password');
   const { error } = await supabase.auth.signUp({ email, password });
   if (error) alert('Signup error: ' + error.message);
+  else alert('Check your email for confirmation or magic link (if enabled).');
+});
+
+$('#magicBtn').addEventListener('click', async () => {
+  if (!featureFlags.enableMagicLink) return alert('Magic link is disabled.');
+  const email = $('#email').value.trim();
+  if (!email) return alert('Enter an email for magic link.');
+  const { error } = await supabase.auth.signInWithOtp({ email });
+  if (error) return alert('Magic link error: ' + error.message);
+  alert('Magic link sent — check your email.');
 });
 
 $('#signOutBtn').addEventListener('click', async () => {
   await supabase.auth.signOut();
-  renderAuth(null);
+  currentUser = null;
+  profile = null;
+  onAuthChanged();
 });
 
-/* Fetch & render services */
+/* Profile management */
+$('#profileBtn').addEventListener('click', () => {
+  // open settings page to edit profile
+  showPage('settingsPage');
+  $('#profileFullName').value = profile?.full_name || '';
+  $('#profilePhone').value = profile?.phone || '';
+});
+
+$('#saveProfileBtn').addEventListener('click', async () => {
+  if (!currentUser) return alert('Not signed in.');
+  const updates = {
+    id: currentUser.id,
+    full_name: $('#profileFullName').value.trim(),
+    phone: $('#profilePhone').value.trim(),
+    updated_at: new Date().toISOString()
+  };
+  // upsert into profiles table (RLS must permit)
+  const { error } = await supabase.from('profiles').upsert(updates, { returning: 'minimal' });
+  if (error) return alert('Profile save error: ' + error.message);
+  alert('Profile updated.');
+  await loadProfile();
+});
+
+/* Send help message (example will insert into audit_logs or call edge fn) */
+$('#sendHelpBtn').addEventListener('click', async () => {
+  const text = $('#helpMessage').value.trim();
+  if (!text) return alert('Write your message first.');
+  // Here we call a generic server endpoint or insert into a support table (requires RLS)
+  const payload = { user_id: currentUser?.id || null, message: text };
+  // For demonstration we insert into audit_logs (if policy allows) else call an edge function
+  const { error } = await supabase.from('audit_logs').insert([{ actor_id: currentUser?.id, action: 'help_request', details: payload }]);
+  if (error) {
+    console.error('Could not save help message, try contacting support email', error);
+    return alert('Could not save message: ' + error.message);
+  }
+  alert('Help request sent. Support will contact you.');
+  $('#helpMessage').value = '';
+});
+
+/* Load profile from 'profiles' table */
+async function loadProfile() {
+  if (!currentUser) return null;
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
+  if (error && error.code !== 'PGRST116') { // ignore no-row if appropriate
+    console.error('Profile load error', error);
+    profile = null;
+    return null;
+  }
+  profile = data || null;
+  return profile;
+}
+
+/* ----------------------------
+   SERVICES: load, view, request
+   ---------------------------- */
+const svcTemplate = document.getElementById('serviceCard');
+
 async function loadServices() {
   const el = $('#servicesList');
-  el.textContent = 'Loading...';
-  const { data, error } = await supabase.from('services').select('id,name,description,price');
+  el.innerHTML = 'Loading...';
+  const { data, error } = await supabase.from('services').select('id,name,description,price,duration_minutes');
   if (error) { el.textContent = 'Error loading services'; console.error(error); return; }
   el.innerHTML = '';
-  const tmpl = document.getElementById('serviceItem');
   data.forEach(s => {
-    const node = tmpl.content.cloneNode(true);
+    const node = svcTemplate.content.cloneNode(true);
     node.querySelector('.name').textContent = s.name;
     node.querySelector('.desc').textContent = s.description || '';
     node.querySelector('.price').textContent = `$${Number(s.price).toFixed(2)}`;
-    const btn = node.querySelector('.requestBtn');
-    btn.addEventListener('click', () => {
-      requestService(s.id);
-    });
+    node.querySelector('.viewBtn').addEventListener('click', () => viewServiceDetails(s));
+    node.querySelector('.requestBtn').addEventListener('click', () => initiateServiceRequest(s));
     el.appendChild(node);
   });
 }
 
-/* Load authenticated user's requests (RLS must allow it) */
-async function loadMyRequests() {
-  const el = $('#requestsList');
-  el.textContent = 'Loading...';
-  const { data, error } = await supabase.from('service_requests').select('*');
-  if (error) { el.textContent = 'Error loading requests'; console.error(error); return; }
-  el.innerHTML = '';
-  const tmpl = document.getElementById('requestItem');
-  if (!data.length) { el.textContent = 'No requests yet'; return; }
-  data.forEach(r => {
-    const node = tmpl.content.cloneNode(true);
-    node.querySelector('.status').textContent = r.status;
-    node.querySelector('.sched').textContent = r.scheduled_at || 'Not scheduled';
-    el.appendChild(node);
-  });
+/* Show service details */
+function viewServiceDetails(svc) {
+  currentService = svc;
+  $('#svcName').textContent = svc.name;
+  $('#svcDesc').textContent = svc.description || '';
+  $('#svcPrice').textContent = Number(svc.price).toFixed(2);
+  $('#svcDuration').textContent = svc.duration_minutes || 60;
+  // show/hide admin edit button based on role
+  if (profile?.role === 'admin') $('#editServiceBtn').classList.remove('hidden'); else $('#editServiceBtn').classList.add('hidden');
+  showPage('serviceDetailsPage');
 }
 
-/* Create request: call server Edge Function (server runs with service_role key) */
-async function requestService(service_id) {
-  const user = (await supabase.auth.getUser()).data?.user;
-  if (!user) { alert('Please sign in first'); return; }
+/* Back to services */
+$('#backToServices').addEventListener('click', () => showPage('servicesPage'));
 
-  // minimal client validation
-  const payload = {
-    customer_id: user.id,
-    service_id,
-    address: prompt('Enter installation address (optional)') || null,
-    notes: prompt('Any notes?') || null
-  };
+/* Request service - opens a prompt then calls server function */
+async function initiateServiceRequest(svc) {
+  // Show details page first
+  viewServiceDetails(svc);
+  // If user clicks Request button on details
+  // We set up requestService button to send
+}
 
+/* Hook up requestService button in details page */
+$('#requestServiceBtn').addEventListener('click', async () => {
+  if (!currentUser) return alert('Please sign in first');
+  const addr = prompt('Enter installation address (optional)');
+  const notes = prompt('Any notes?');
+  const payload = { customer_id: currentUser.id, service_id: currentService.id, address: addr || null, notes: notes || null };
+
+  // Use server-side function to create request (server runs with service_role)
   try {
-    const res = await fetch(CREATE_REQUEST_FN_URL, {
+    const res = await fetch(FN_CREATE_REQUEST, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // include the user's auth cookie/JWT if needed; supabase edge functions can read bearer token
-        // NOTE: if your Edge Function requires the user's JWT, add it here:
-        // 'Authorization': 'Bearer ' + (await supabase.auth.getSession()).data.session?.access_token
-      },
+      headers: { 'Content-Type': 'application/json' /*, add Authorization if your function expects it */ },
       body: JSON.stringify(payload)
     });
-
     const json = await res.json();
     if (!res.ok) {
-      console.error(json); alert('Failed to create request: ' + (json?.error || res.statusText));
-      return;
+      console.error(json);
+      return alert('Failed to create request: ' + (json?.error || res.statusText));
     }
     alert('Request created ✓');
-    loadMyRequests();
+    // refresh lists
+    await loadMyRequests();
+    await loadServices();
+    showPage('requestsPage');
   } catch (err) {
-    console.error(err); alert('Network error creating request');
+    console.error(err);
+    alert('Network error creating request');
+  }
+});
+
+/* EDIT / ADD service buttons (Admin) */
+$('#addServiceBtn').addEventListener('click', async () => {
+  if (!profile || profile.role !== 'admin') return alert('Admin only');
+  // popup small form
+  const name = prompt('Service name');
+  if (!name) return;
+  const desc = prompt('Description') || '';
+  const price = prompt('Price (number)', '0') || '0';
+  const dur = prompt('Duration (minutes)', '60') || '60';
+  const payload = { name, description: desc, price: Number(price), duration_minutes: Number(dur) };
+
+  // call edge function for admin add (server uses service_role)
+  try {
+    const res = await fetch(FN_ADD_SERVICE, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+    const json = await res.json();
+    if (!res.ok) { console.error(json); return alert('Failed to add service: ' + (json?.error || res.statusText)); }
+    alert('Service created');
+    await loadServices();
+    await loadAdminServices();
+  } catch (err) {
+    console.error(err);
+    alert('Network error adding service');
+  }
+});
+
+/* Edit service (from details) */
+$('#editServiceBtn').addEventListener('click', async () => {
+  if (!profile || profile.role !== 'admin') return alert('Admin only');
+  const name = prompt('Service name', currentService.name) || currentService.name;
+  const desc = prompt('Description', currentService.description) || currentService.description;
+  const price = prompt('Price (number)', currentService.price) || currentService.price;
+  const dur = prompt('Duration (minutes)', currentService.duration_minutes) || currentService.duration_minutes;
+  const payload = { id: currentService.id, name, description: desc, price: Number(price), duration_minutes: Number(dur) };
+  try {
+    const res = await fetch(FN_UPDATE_SERVICE, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+    const json = await res.json();
+    if (!res.ok) { console.error(json); return alert('Failed to update service'); }
+    alert('Service updated');
+    await loadServices();
+    await loadAdminServices();
+    viewServiceDetails(payload);
+  } catch (err) {
+    console.error(err);
+    alert('Network error updating service');
+  }
+});
+
+/* -------------------------
+   MY REQUESTS: list & view
+   ------------------------- */
+const reqTemplate = document.getElementById('requestCard');
+
+async function loadMyRequests() {
+  if (!currentUser) {
+    $('#requestsList').textContent = 'Login to see your requests';
+    return;
+  }
+  const el = $('#requestsList');
+  el.textContent = 'Loading...';
+  // RLS should allow users to select their own requests
+  const { data, error } = await supabase.from('service_requests').select('id,status,created_at,service_id,notes,scheduled_at').eq('customer_id', currentUser.id).order('created_at', { ascending: false });
+  if (error) { el.textContent = 'Error loading requests'; console.error(error); return; }
+  el.innerHTML = '';
+  if (!data.length) { el.textContent = 'No requests yet'; return; }
+  for (const r of data) {
+    // fetch service name (could be joined server-side)
+    const svc = (await supabase.from('services').select('name').eq('id', r.service_id).single()).data;
+    const node = reqTemplate.content.cloneNode(true);
+    node.querySelector('.svcName').textContent = svc?.name || 'Service';
+    node.querySelector('.status').textContent = r.status;
+    node.querySelector('.createdAt').textContent = new Date(r.created_at).toLocaleString();
+    node.querySelector('.notes').textContent = r.notes || '-';
+    const btn = node.querySelector('.viewReqBtn');
+    btn.addEventListener('click', () => viewRequestDetails(r));
+    el.appendChild(node);
   }
 }
 
-/* init */
+/* View request details */
+async function viewRequestDetails(r) {
+  currentRequest = r;
+  // get service name
+  const svc = (await supabase.from('services').select('name').eq('id', r.service_id).single()).data;
+  $('#reqTitle').textContent = `Request — ${svc?.name || ''}`;
+  $('#reqStatus').textContent = r.status;
+  $('#reqServiceName').textContent = svc?.name || '';
+  $('#reqScheduled').textContent = r.scheduled_at || 'Not scheduled';
+  $('#reqNotes').textContent = r.notes || '';
+  // show admin actions if admin
+  const actionsEl = $('#reqActions');
+  actionsEl.innerHTML = '';
+  if (profile?.role === 'admin') {
+    const assignBtn = document.createElement('button'); assignBtn.textContent = 'Assign Technician'; assignBtn.className='px-3 py-1 border rounded';
+    assignBtn.addEventListener('click', () => adminAssignTechnician(r));
+    const approveBtn = document.createElement('button'); approveBtn.textContent = 'Approve'; approveBtn.className='px-3 py-1 bg-green-600 text-white rounded';
+    approveBtn.addEventListener('click', () => adminApproveReject(r, true));
+    const rejectBtn = document.createElement('button'); rejectBtn.textContent = 'Reject'; rejectBtn.className='px-3 py-1 bg-red-600 text-white rounded';
+    rejectBtn.addEventListener('click', () => adminApproveReject(r, false));
+    actionsEl.appendChild(assignBtn); actionsEl.appendChild(approveBtn); actionsEl.appendChild(rejectBtn);
+  }
+  // technician actions
+  if (profile?.role === 'technician' && r.technician_id === currentUser.id) {
+    const startBtn = document.createElement('button'); startBtn.textContent='Mark In Progress'; startBtn.className='px-3 py-1 border rounded';
+    startBtn.addEventListener('click', () => techUpdateStatus(r, 'in_progress'));
+    const completeBtn = document.createElement('button'); completeBtn.textContent='Mark Completed'; completeBtn.className='px-3 py-1 bg-green-600 text-white rounded';
+    completeBtn.addEventListener('click', () => techUpdateStatus(r, 'completed'));
+    const uploadBtn = document.createElement('button'); uploadBtn.textContent='Upload Report'; uploadBtn.className='px-3 py-1 border rounded';
+    uploadBtn.addEventListener('click', () => techUploadReport(r));
+    actionsEl.appendChild(startBtn); actionsEl.appendChild(completeBtn); actionsEl.appendChild(uploadBtn);
+  }
+
+  showPage('requestDetailsPage');
+}
+
+/* Back to requests */
+$('#backToRequests').addEventListener('click', () => showPage('requestsPage'));
+
+/* -------------------------
+   ADMIN FUNCTIONS
+   ------------------------- */
+async function loadAdminRequests() {
+  if (!profile || profile.role !== 'admin') return;
+  const el = $('#adminRequests'); el.textContent = 'Loading...';
+  const { data, error } = await supabase.from('service_requests').select('id,status,created_at,customer_id,service_id,notes,technician_id').order('created_at', { ascending: false });
+  if (error) { el.textContent = 'Error loading'; console.error(error); return; }
+  el.innerHTML = '';
+  for (const r of data) {
+    const node = document.createElement('div');
+    node.className = 'border p-3 rounded mb-2';
+    const svc = (await supabase.from('services').select('name').eq('id', r.service_id).single()).data;
+    node.innerHTML = `<div><strong>${svc?.name || 'Service'}</strong> — ${r.status}</div><div class="text-sm text-gray-600">Notes: ${r.notes || '-'}<div class="mt-2"></div></div>`;
+    const assign = document.createElement('button'); assign.className='px-2 py-1 border rounded mr-2'; assign.textContent='Assign';
+    assign.addEventListener('click', () => adminAssignTechnician(r));
+    const approve = document.createElement('button'); approve.className='px-2 py-1 bg-green-600 text-white rounded mr-2'; approve.textContent='Approve';
+    approve.addEventListener('click', () => adminApproveReject(r, true));
+    const reject = document.createElement('button'); reject.className='px-2 py-1 bg-red-600 text-white rounded'; reject.textContent='Reject';
+    reject.addEventListener('click', () => adminApproveReject(r, false));
+    node.appendChild(assign); node.appendChild(approve); node.appendChild(reject);
+    el.appendChild(node);
+  }
+}
+
+/* Admin: Assign technician (calls server) */
+async function adminAssignTechnician(requestObj) {
+  if (!profile || profile.role !== 'admin') return alert('Admin only');
+  // Prompt for technician id (in real UI provide selector)
+  const techId = prompt('Enter technician user id (uuid)');
+  if (!techId) return;
+  const payload = { request_id: requestObj.id, technician_id: techId };
+  try {
+    const res = await fetch(FN_ASSIGN_TECH, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const json = await res.json();
+    if (!res.ok) { console.error(json); return alert('Failed to assign technician'); }
+    alert('Technician assigned.');
+    await loadAdminRequests();
+  } catch (err) {
+    console.error(err); alert('Network error assigning technician.');
+  }
+}
+
+/* Admin: Approve or reject a request */
+async function adminApproveReject(requestObj, approve=true) {
+  if (!profile || profile.role !== 'admin') return alert('Admin only');
+  const payload = { request_id: requestObj.id, approve };
+  try {
+    const res = await fetch(FN_APPROVE_REQUEST, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const json = await res.json();
+    if (!res.ok) { console.error(json); return alert('Failed to update request status'); }
+    alert(approve ? 'Request approved' : 'Request rejected');
+    await loadAdminRequests();
+    await loadMyRequests();
+  } catch (err) {
+    console.error(err); alert('Network error approving/rejecting.');
+  }
+}
+
+/* Admin: load services management list */
+async function loadAdminServices() {
+  if (!profile || profile.role !== 'admin') return;
+  const el = $('#adminServices'); el.textContent = 'Loading...';
+  const { data, error } = await supabase.from('services').select('*').order('created_at', { ascending: false });
+  if (error) { el.textContent = 'Error'; console.error(error); return; }
+  el.innerHTML = '';
+  data.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'border p-3 rounded mb-2';
+    div.innerHTML = `<div class="font-bold">${s.name}</div><div class="text-sm text-gray-600">${s.description || ''}</div><div class="mt-2"><small>$${s.price}</small></div>`;
+    const editBtn = document.createElement('button'); editBtn.className='px-2 py-1 border rounded mt-2'; editBtn.textContent='Edit';
+    editBtn.addEventListener('click', async () => {
+      currentService = s;
+      viewServiceDetails(s);
+    });
+    div.appendChild(editBtn);
+    el.appendChild(div);
+  });
+}
+
+/* -------------------------
+   TECHNICIAN FUNCTIONS
+   ------------------------- */
+async function loadTechnicianJobs() {
+  if (!profile || profile.role !== 'technician') {
+    $('#techJobs').textContent = 'No technician assigned';
+    return;
+  }
+  const el = $('#techJobs'); el.textContent = 'Loading...';
+  const { data, error } = await supabase.from('service_requests').select('*').eq('technician_id', currentUser.id).order('created_at', { ascending: false });
+  if (error) { el.textContent = 'Error'; console.error(error); return; }
+  el.innerHTML = '';
+  if (!data.length) { el.textContent = 'No jobs assigned'; return; }
+  data.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'border p-3 rounded mb-2';
+    div.innerHTML = `<div><strong>${r.id}</strong> — ${r.status}</div><div class="text-sm text-gray-600">Notes: ${r.notes || '-'}</div>`;
+    const startBtn = document.createElement('button'); startBtn.className='px-2 py-1 border rounded mt-2 mr-2'; startBtn.textContent='Start';
+    startBtn.addEventListener('click', () => techUpdateStatus(r, 'in_progress'));
+    const completeBtn = document.createElement('button'); completeBtn.className='px-2 py-1 bg-green-600 text-white rounded mt-2'; completeBtn.textContent='Complete';
+    completeBtn.addEventListener('click', () => techUpdateStatus(r, 'completed'));
+    const uploadBtn = document.createElement('button'); uploadBtn.className='px-2 py-1 border rounded mt-2 ml-2'; uploadBtn.textContent='Upload Report';
+    uploadBtn.addEventListener('click', () => techUploadReport(r));
+    div.appendChild(startBtn); div.appendChild(completeBtn); div.appendChild(uploadBtn);
+    el.appendChild(div);
+  });
+}
+
+/* Tech: update job status (should call your secure edge fn or use RLS to allow tech) */
+async function techUpdateStatus(requestObj, newStatus) {
+  if (!profile || profile.role !== 'technician') return alert('Technician only');
+  // For demo attempt an update via Supabase (requires RLS policy allowing this), otherwise call edge function
+  const { error } = await supabase.from('service_requests').update({ status: newStatus }).eq('id', requestObj.id);
+  if (error) {
+    console.warn('Could not update via anon client, try calling edge function', error);
+    alert('Could not update status via frontend (RLS may block). Contact admin or use server endpoint.');
+    return;
+  }
+  alert('Status updated: ' + newStatus);
+  await loadTechnicianJobs();
+  await loadMyRequests();
+}
+
+/* Tech: upload report/photos - requires storage bucket and policies or a server endpoint */
+async function techUploadReport(requestObj) {
+  if (!featureFlags.enableFileUpload) return alert('File uploads disabled. Enable featureFlags.enableFileUpload if configured.');
+  // For a client-side upload to Supabase storage, RLS/policies must allow authenticated uploads
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*,application/pdf';
+  fileInput.onchange = async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const filename = `${requestObj.id}/${Date.now()}_${file.name}`;
+    const { data, error } = await supabase.storage.from('reports').upload(filename, file);
+    if (error) { console.error('Upload error', error); return alert('Upload failed: ' + error.message); }
+    // Save report record in DB (requires RLS or server)
+    const publicUrl = supabase.storage.from('reports').getPublicUrl(data.path).data.publicUrl;
+    await supabase.from('audit_logs').insert([{ actor_id: currentUser.id, action: 'upload_report', details: { request_id: requestObj.id, url: publicUrl } }]);
+    alert('File uploaded');
+  };
+  fileInput.click();
+}
+
+/* -------------------------
+   Periodic / convenience loaders
+   ------------------------- */
+async function refreshAllDashboards() {
+  await loadServices();
+  await loadMyRequests();
+  await loadAdminRequests();
+  await loadAdminServices();
+  await loadTechnicianJobs();
+}
+
+/* Event: when settings page loaded, ensure profile fields set */
+document.getElementById('settingsPage').addEventListener('click', () => {
+  $('#profileFullName').value = profile?.full_name || '';
+  $('#profilePhone').value = profile?.phone || '';
+});
+
+/* When admin or technician pages shown, load their data */
+document.getElementById('adminPage').addEventListener('mouseenter', () => { if (profile?.role === 'admin') { loadAdminRequests(); loadAdminServices(); } });
+document.getElementById('technicianPage').addEventListener('mouseenter', () => { if (profile?.role === 'technician') loadTechnicianJobs(); });
+
+/* Simple search binding */
+$('#serviceSearch')?.addEventListener('input', async (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  const items = document.querySelectorAll('#servicesList > div');
+  if (!q) { items.forEach(i=>i.style.display='block'); return; }
+  items.forEach(item => {
+    const name = item.querySelector('.name').textContent.toLowerCase();
+    const desc = item.querySelector('.desc').textContent.toLowerCase();
+    item.style.display = (name.includes(q) || desc.includes(q)) ? 'block' : 'none';
+  });
+});
+
+/* On page load */
 init();
+
+/* Expose setFeatureFlag globally for debugging/testing in console */
+window.setFeatureFlag = setFeatureFlag;
+window.refreshAllDashboards = refreshAllDashboards;
+
+/* Optional: basic WAF hint for deployment (not implemented here):
+   - Place this site behind Cloudflare (free) and enable Firewall rules:
+     * block/challenge suspicious IPs
+     * block well-known SQLi/XSS patterns
+     * enable Browser Integrity Check
+   - For server endpoints (Edge Functions) validate incoming JWTs and restrict actions to admin role.
+*/
 </script>
 </body>
 </html>
